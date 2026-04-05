@@ -1,0 +1,93 @@
+#!/sbin/openrc-run
+
+# backward compatibility for existing gentoo layout
+#
+if [ -d "/var/lib/lambdanio/.lambdanio" ]; then
+	LAMBDANIOD_DEFAULT_DATADIR="/var/lib/lambdanio/.lambdanio"
+else
+	LAMBDANIOD_DEFAULT_DATADIR="/var/lib/lambdaniod"
+fi
+
+LAMBDANIOD_CONFIGFILE=${LAMBDANIOD_CONFIGFILE:-/etc/lambdanio/lambdanio.conf}
+LAMBDANIOD_PIDDIR=${LAMBDANIOD_PIDDIR:-/var/run/lambdaniod}
+LAMBDANIOD_PIDFILE=${LAMBDANIOD_PIDFILE:-${LAMBDANIOD_PIDDIR}/lambdaniod.pid}
+LAMBDANIOD_DATADIR=${LAMBDANIOD_DATADIR:-${LAMBDANIOD_DEFAULT_DATADIR}}
+LAMBDANIOD_USER=${LAMBDANIOD_USER:-${LAMBDANIO_USER:-lambdanio}}
+LAMBDANIOD_GROUP=${LAMBDANIOD_GROUP:-lambdanio}
+LAMBDANIOD_BIN=${LAMBDANIOD_BIN:-/usr/bin/lambdaniod}
+LAMBDANIOD_NICE=${LAMBDANIOD_NICE:-${NICELEVEL:-0}}
+LAMBDANIOD_OPTS="${LAMBDANIOD_OPTS:-${LAMBDANIO_OPTS}}"
+
+name="Lambdanio Core Daemon"
+description="Lambdanio cryptocurrency P2P network daemon"
+
+command="/usr/bin/lambdaniod"
+command_args="-pid=\"${LAMBDANIOD_PIDFILE}\" \
+		-conf=\"${LAMBDANIOD_CONFIGFILE}\" \
+		-datadir=\"${LAMBDANIOD_DATADIR}\" \
+		-daemon \
+		${LAMBDANIOD_OPTS}"
+
+required_files="${LAMBDANIOD_CONFIGFILE}"
+start_stop_daemon_args="-u ${LAMBDANIOD_USER} \
+			-N ${LAMBDANIOD_NICE} -w 2000"
+pidfile="${LAMBDANIOD_PIDFILE}"
+
+# The retry schedule to use when stopping the daemon. Could be either
+# a timeout in seconds or multiple signal/timeout pairs (like
+# "SIGKILL/180 SIGTERM/300")
+retry="${LAMBDANIOD_SIGTERM_TIMEOUT}"
+
+depend() {
+	need localmount net
+}
+
+# verify
+# 1) that the datadir exists and is writable (or create it)
+# 2) that a directory for the pid exists and is writable
+# 3) ownership and permissions on the config file
+start_pre() {
+	checkpath \
+	-d \
+	--mode 0750 \
+	--owner "${LAMBDANIOD_USER}:${LAMBDANIOD_GROUP}" \
+	"${LAMBDANIOD_DATADIR}"
+
+	checkpath \
+	-d \
+	--mode 0755 \
+	--owner "${LAMBDANIOD_USER}:${LAMBDANIOD_GROUP}" \
+	"${LAMBDANIOD_PIDDIR}"
+
+	checkpath -f \
+	-o "${LAMBDANIOD_USER}:${LAMBDANIOD_GROUP}" \
+	-m 0660 \
+	"${LAMBDANIOD_CONFIGFILE}"
+
+	checkconfig || return 1
+}
+
+checkconfig()
+{
+	if grep -qs '^rpcuser=' "${LAMBDANIOD_CONFIGFILE}" && \
+		! grep -qs '^rpcpassword=' "${LAMBDANIOD_CONFIGFILE}" ; then
+		eerror ""
+		eerror "ERROR: You must set a secure rpcpassword to run lambdaniod."
+		eerror "The setting must appear in ${LAMBDANIOD_CONFIGFILE}"
+		eerror ""
+		eerror "This password is security critical to securing wallets "
+		eerror "and must not be the same as the rpcuser setting."
+		eerror "You can generate a suitable random password using the following "
+		eerror "command from the shell:"
+		eerror ""
+		eerror "bash -c 'tr -dc a-zA-Z0-9 < /dev/urandom | head -c32 && echo'"
+		eerror ""
+		eerror "It is recommended that you also set alertnotify so you are "
+		eerror "notified of problems:"
+		eerror ""
+		eerror "ie: alertnotify=echo %%s | mail -s \"Lambdanio Alert\"" \
+			"admin@foo.com"
+		eerror ""
+		return 1
+	fi
+}

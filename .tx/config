@@ -1,0 +1,7 @@
+[main]
+host = https://www.transifex.com
+
+[o:lambdanio:p:lambdanio:r:qt-translation-031x]
+file_filter = src/qt/locale/lambdanio_<lang>.xlf
+source_file = src/qt/locale/lambdanio_en.xlf
+source_lang = en

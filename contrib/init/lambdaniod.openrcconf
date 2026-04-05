@@ -1,0 +1,33 @@
+# /etc/conf.d/lambdaniod: config file for /etc/init.d/lambdaniod
+
+# Config file location
+#LAMBDANIOD_CONFIGFILE="/etc/lambdanio/lambdanio.conf"
+
+# What directory to write pidfile to?  (created and owned by $LAMBDANIOD_USER)
+#LAMBDANIOD_PIDDIR="/var/run/lambdaniod"
+
+# What filename to give the pidfile
+#LAMBDANIOD_PIDFILE="${LAMBDANIOD_PIDDIR}/lambdaniod.pid"
+
+# Where to write lambdaniod data (be mindful that the blockchain is large)
+#LAMBDANIOD_DATADIR="/var/lib/lambdaniod"
+
+# User and group to own lambdaniod process
+#LAMBDANIOD_USER="lambdanio"
+#LAMBDANIOD_GROUP="lambdanio"
+
+# Path to lambdaniod executable
+#LAMBDANIOD_BIN="/usr/bin/lambdaniod"
+
+# Nice value to run lambdaniod under
+#LAMBDANIOD_NICE=0
+
+# Additional options (avoid -conf and -datadir, use flags above)
+#LAMBDANIOD_OPTS=""
+
+# The timeout in seconds OpenRC will wait for lambdaniod to terminate
+# after a SIGTERM has been raised.
+# Note that this will be mapped as argument to start-stop-daemon's
+# '--retry' option, which means you can specify a retry schedule
+# here. For more information see man 8 start-stop-daemon.
+LAMBDANIOD_SIGTERM_TIMEOUT=600
