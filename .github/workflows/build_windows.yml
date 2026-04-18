@@ -1,0 +1,47 @@
+name: Build and Release Lambdanio Full
+
+on:
+  push:
+    tags:
+      - 'v*' # Se activa al crear un tag como v1.0, v2.0...
+  workflow_dispatch: # Permite darle al botón "Run" manualmente
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Instalar y preparar vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg
+          .\vcpkg\bootstrap-vcpkg.bat
+
+      - name: Configurar CMake (Presets vs2022)
+        run: |
+          cmake -B build --preset vs2022-static `
+            -DBUILD_GUI=ON `
+            -DENABLE_IPC=OFF `
+            -DWITH_INCOMPATIBLE_BDB=ON `
+            -DCMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake"
+
+      - name: Compilar Lambdanio (Todos los ejecutables)
+        run: cmake --build build --config Release -j 2
+
+      - name: Crear archivo ZIP con TODOS los .exe
+        shell: pwsh
+        run: |
+          # Esto busca todos los ejecutables generados en las carpetas de salida
+          $files = Get-ChildItem -Path "build/src/Release/*.exe", "build/src/qt/Release/*.exe"
+          Compress-Archive -Path $files -DestinationPath Lambdanio-Windows-Full.zip
+
+      - name: Publicar en Releases
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: Lambdanio-Windows-Full.zip
+          name: Release ${{ github.ref_name }}
+          body: "Compilación automática de todos los binarios de Lambdanio para Windows."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
