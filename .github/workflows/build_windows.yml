@@ -13,11 +13,11 @@ jobs:
       - name: Checkout del código
         uses: actions/checkout@v4
 
-      - name: Setup vcpkg (Oficial)
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgDirectory: ${{ github.workspace }}/vcpkg
-          vcpkgGitCommitId: 'master' # O un hash específico si prefieres
+      - name: Preparar vcpkg
+        run: |
+          # Clonamos vcpkg de forma superficial para que sea rápido y no falle
+          git clone --depth=1 https://github.com
+          .\vcpkg\bootstrap-vcpkg.bat
 
       - name: Configurar CMake (Forzando VS 2022)
         run: |
@@ -37,6 +37,7 @@ jobs:
       - name: Crear archivo ZIP
         shell: pwsh
         run: |
+          # Buscamos los .exe y los metemos en el zip
           $files = Get-ChildItem -Path "build/src/Release/*.exe", "build/src/qt/Release/*.exe"
           Compress-Archive -Path $files -DestinationPath Lambdanio-Windows-Full.zip
 
