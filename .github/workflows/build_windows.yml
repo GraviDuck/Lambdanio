@@ -3,8 +3,8 @@ name: Build and Release Lambdanio Full
 on:
   push:
     tags:
-      - 'v*'
-  workflow_dispatch:
+      - 'v*' # Se activa al crear un tag (v1.0.2, etc.)
+  workflow_dispatch: # Permite darle al botón "Run" manualmente
 
 jobs:
   build:
@@ -13,13 +13,25 @@ jobs:
       - name: Checkout del código
         uses: actions/checkout@v4
 
+      # ESTE PASO ES EL QUE TE SALVARÁ DE ESPERAR 1.5h LA PRÓXIMA VEZ
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: |
+            vcpkg
+            build/vcpkg_installed
+          key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-
+
       - name: Preparar vcpkg
         run: |
-          # Clonamos vcpkg de forma superficial para que sea rápido y no falle
-          git clone https://github.com/microsoft/vcpkg
-          .\vcpkg\bootstrap-vcpkg.bat
+          if (!(Test-Path vcpkg)) {
+            git clone https://github.com/microsoft/vcpkg
+            .\vcpkg\bootstrap-vcpkg.bat
+          }
 
-      - name: Configurar CMake (Forzando VS 2022)
+      - name: Configurar CMake
         run: |
           cmake -B build `
             -G "Visual Studio 17 2022" -A x64 `
@@ -32,14 +44,19 @@ jobs:
             -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
 
       - name: Compilar Lambdanio
-        run: cmake --build build --config Release -j 2
+        # Usamos -j 1 para que no explote la RAM al compilar el GUI
+        run: cmake --build build --config Release -j 1
 
-      - name: Crear archivo ZIP
+      - name: Crear archivo ZIP con binarios
         shell: pwsh
         run: |
-          # Buscamos los .exe y los metemos en el zip
-          $files = Get-ChildItem -Path "build/src/Release/*.exe", "build/src/qt/Release/*.exe"
-          Compress-Archive -Path $files -DestinationPath Lambdanio-Windows-Full.zip
+          $files = Get-ChildItem -Path "build/src/Release/*.exe", "build/src/qt/Release/*.exe" -ErrorAction SilentlyContinue
+          if ($files) {
+            Compress-Archive -Path $files -DestinationPath Lambdanio-Windows-Full.zip
+          } else {
+            Write-Error "No se encontraron ejecutables. La compilación pudo haber fallado silenciosamente."
+            exit 1
+          }
 
       - name: Publicar en Releases
         uses: softprops/action-gh-release@v2
@@ -47,5 +64,6 @@ jobs:
         with:
           files: Lambdanio-Windows-Full.zip
           name: Release ${{ github.ref_name }}
+          body: "Compilación exitosa de Lambdanio para Windows."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
