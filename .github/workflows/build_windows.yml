@@ -16,7 +16,7 @@ jobs:
       - name: Preparar vcpkg
         run: |
           # Clonamos vcpkg de forma superficial para que sea rápido y no falle
-          git clone --depth=1 https://github.com
+          git clone --depth=1 https://github.com/microsoft/vcpkg
           .\vcpkg\bootstrap-vcpkg.bat
 
       - name: Configurar CMake (Forzando VS 2022)
