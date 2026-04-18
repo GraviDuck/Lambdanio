@@ -18,13 +18,17 @@ jobs:
           git clone https://github.com/microsoft/vcpkg
           .\vcpkg\bootstrap-vcpkg.bat
 
-      - name: Configurar CMake (Presets vs2022)
+      - name: Configurar CMake (Forzando VS 2022)
         run: |
-          cmake -B build --preset vs2022-static `
+          cmake -B build `
+            -G "Visual Studio 17 2022" -A x64 `
             -DBUILD_GUI=ON `
             -DENABLE_IPC=OFF `
             -DWITH_INCOMPATIBLE_BDB=ON `
-            -DCMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake"
+            -DCMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
+            -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
 
       - name: Compilar Lambdanio (Todos los ejecutables)
         run: cmake --build build --config Release -j 2
