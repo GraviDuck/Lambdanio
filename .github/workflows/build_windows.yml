@@ -38,11 +38,13 @@ jobs:
             -DBUILD_GUI=ON `
             -DENABLE_IPC=OFF `
             -DWITH_INCOMPATIBLE_BDB=ON `
+            -DBUILD_TESTS=OFF `
             -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" `
             -DVCPKG_TARGET_TRIPLET=x64-windows-static `
             -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
             -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
 
+      
       - name: Compilar Lambdanio
         # Usamos -j 1 para que no explote la RAM al compilar el GUI
         run: cmake --build build --config Release -j 1
