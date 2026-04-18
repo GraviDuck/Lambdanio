@@ -4,7 +4,7 @@ on:
   push:
     tags:
       - 'v*' # Se activa al crear un tag (v1.0.2, etc.)
-  workflow_dispatch: # Permite darle al botón "Run" manualmente
+  workflow_dispatch: # Permite lanzarlo manualmente desde la pestaña Actions
 
 jobs:
   build:
@@ -27,7 +27,7 @@ jobs:
       - name: Preparar vcpkg
         run: |
           if (!(Test-Path vcpkg)) {
-            git clone https://github.com/microsoft/vcpkg
+            git clone https://github.com
             .\vcpkg\bootstrap-vcpkg.bat
           }
 
@@ -40,23 +40,30 @@ jobs:
             -DWITH_INCOMPATIBLE_BDB=ON `
             -DBUILD_TESTS=OFF `
             -DBUILD_UNIT_TESTS=OFF `
+            -DCMAKE_INSTALL_PREFIX=dist `
             -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" `
             -DVCPKG_TARGET_TRIPLET=x64-windows-static `
             -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
             -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
 
       - name: Compilar Lambdanio
-        # Mantenemos -j 1 para asegurar que no falle por RAM en la primera pasada
+        # -j 1 es vital para no agotar los 7GB de RAM de GitHub Actions
         run: cmake --build build --config Release -j 1
+
+      - name: Organizar Binarios
+        run: cmake --install build --config Release
 
       - name: Crear archivo ZIP con binarios
         shell: pwsh
         run: |
-          $files = Get-ChildItem -Path "build/src/Release/*.exe", "build/src/qt/Release/*.exe" -ErrorAction SilentlyContinue
+          # Buscamos en la carpeta de instalación y en las de build por seguridad
+          $files = Get-ChildItem -Path "dist/bin/*.exe", "build/src/Release/*.exe", "build/src/qt/Release/*.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -Unique
+          
           if ($files) {
+            Write-Host "Archivos encontrados para el ZIP: $files"
             Compress-Archive -Path $files -DestinationPath Lambdanio-Windows-Full.zip
           } else {
-            Write-Error "No se encontraron ejecutables. La compilación pudo haber fallado."
+            Write-Error "No se encontraron ejecutables (.exe). Revisa los logs de compilación."
             exit 1
           }
 
@@ -66,6 +73,6 @@ jobs:
         with:
           files: Lambdanio-Windows-Full.zip
           name: Release ${{ github.ref_name }}
-          body: "Compilación exitosa de Lambdanio para Windows (Tests desactivados para estabilidad)."
+          body: "Compilación automática de Lambdanio para Windows. Incluye Daemon, CLI y GUI."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
