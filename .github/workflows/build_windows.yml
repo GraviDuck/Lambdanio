@@ -3,12 +3,16 @@ name: Build and Release Lambdanio Full
 on:
   push:
     tags:
-      - 'v*' # Se activa al crear un tag (v1.0.2, etc.)
-  workflow_dispatch: # Permite lanzarlo manualmente desde la pestaña Actions
+      - 'v*'
+      - 'Windows' # Se activa al crear el tag 'Windows'
+  workflow_dispatch: # Permite lanzarlo a mano si quieres
 
 jobs:
   build:
     runs-on: windows-2022
+    permissions:
+      contents: write # Permiso necesario para subir archivos a la Release
+    
     steps:
       - name: Checkout del código
         uses: actions/checkout@v4
@@ -48,32 +52,40 @@ jobs:
             -DCMAKE_EXE_LINKER_FLAGS="/INCREMENTAL:NO /OPT:REF /OPT:ICF"
 
       - name: Compilar Lambdanio
-        # -j 1 es vital para no agotar los 7GB de RAM de GitHub Actions
         run: cmake --build build --config Release -j 1
 
       - name: Organizar Binarios
         run: cmake --install build --config Release
 
+      - name: Ver contenido de carpeta dist
+        shell: pwsh
+        run: |
+          Write-Host "--- Verificando ejecutables instalados ---"
+          if (Test-Path "dist/bin") { Get-ChildItem "dist/bin" | Select-Object Name, Length }
+          else { Write-Warning "La carpeta dist/bin no existe" }
+
       - name: Crear archivo ZIP con binarios
         shell: pwsh
         run: |
-          # Buscamos en la carpeta de instalación y en las de build por seguridad
           $files = Get-ChildItem -Path "dist/bin/*.exe", "build/src/Release/*.exe", "build/src/qt/Release/*.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -Unique
-          
           if ($files) {
             Write-Host "Archivos encontrados para el ZIP: $files"
             Compress-Archive -Path $files -DestinationPath Lambdanio-Windows-Full.zip
           } else {
-            Write-Error "No se encontraron ejecutables (.exe). Revisa los logs de compilación."
+            Write-Error "No se encontraron ejecutables (.exe). Revisa el log de compilación."
             exit 1
           }
 
       - name: Publicar en Releases
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         with:
           files: Lambdanio-Windows-Full.zip
-          name: Release ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name || 'Windows' }}
+          name: Release ${{ github.ref_name || 'Windows' }}
           body: "Compilación automática de Lambdanio para Windows. Incluye Daemon, CLI y GUI."
+          draft: false
+          prerelease: false
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
