@@ -11,5 +11,6 @@
  * Each line contains a BIP155 serialized (networkID, addr, port) tuple.
  */
 static const uint8_t chainparams_seed_main[] = {
+0
 };
 #endif // LAMBDANIO_CHAINPARAMSSEEDS_H
